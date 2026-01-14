@@ -2,10 +2,10 @@
 **Framework:** OSEMN (Obtain, Scrub, Explore, Model, Interpret)  
 **Tools:** Python (Pandas/NumPy), Tableau, RFM Analysis
 
-## 🎯 Project Objective
+##  Project Objective
 To quantify the impact of "Logistics Friction" (shipping-to-price ratio) on long-term customer retention and Lifetime Value (LTV) within the Brazilian e-commerce market.
 
-## 🛠 The OSEMN Workflow
+##  The OSEMN Workflow
 
 ### 1. Obtain & Scrub
 * **Data Source:** Olist Brazilian E-commerce Dataset.
@@ -23,7 +23,7 @@ To quantify the impact of "Logistics Friction" (shipping-to-price ratio) on long
 * **[LINK TO TABLEAU PUBLIC DASHBOARD HERE]**
 * **Key Insight:** High-value "Gold Tier" customers are 30% more sensitive to logistics friction than "Bronze Tier" customers, suggesting that shipping subsidies should be prioritized for high-LTV segments.
 
-## 📉 Strategic Validation (The "Why")
+##  Strategic Validation (The "Why")
 To validate the hypothesis that logistics friction drives churn, I performed a statistical audit of the active vs. churned user base.
 
 **The 60-Day Cliff**

@@ -531,7 +531,7 @@ percent_drop = ((avg_ltv_at_risk - avg_ltv_active) / avg_ltv_active) * 100
 # Quantifying the "Cliff" magnitude: The percentage loss in Future Value when a user goes dark
 
 print("-" * 60)
-print("📉 STRATEGIC VALIDATION: THE 60-DAY CLIFF")
+print("STRATEGIC VALIDATION: THE 60-DAY CLIFF")
 print("-" * 60)
 print(f"Average LTV (Active / 0-{threshold} days):  ${avg_ltv_active:.2f}")
 # Reporting the baseline value of an engaged user
@@ -550,7 +550,7 @@ friction_delta = ((avg_friction_at_risk - avg_friction_active) / avg_friction_ac
 # Quantifying the difference: Positive % means churned users experienced more pain
 
 print("-" * 60)
-print("🧐 HYPOTHESIS TEST: LOGISTICS FRICTION IMPACT")
+print("HYPOTHESIS TEST: LOGISTICS FRICTION IMPACT")
 print("-" * 60)
 print(f"Avg Friction Score (Active Customers):   {avg_friction_active:.2f}%")
 # Benchmarking the retained user experience

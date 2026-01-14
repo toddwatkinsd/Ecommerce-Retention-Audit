@@ -1,0 +1,566 @@
+import pandas as pd 
+# Importing the pandas library to handle dataframe manipulation and ETL processes
+import seaborn as sns 
+# Importing seaborn for high-level statistical data visualization
+import matplotlib.pyplot as plt
+# Importing matplotlib for granular control over plotting and charts
+import os
+# Importing the os module to interact with the operating system and file paths
+import sqlite3
+# Importing sqlite3 for database interactions (though not explicitly used in the active script, kept for legacy support)
+import numpy as np 
+# Importing numpy for numerical computing and handling arrays/NaN values
+
+# ==========================================
+# SECTION I: OBTAIN & INITIALIZE
+# ==========================================
+
+os.chdir('/Users/toddwatkins/desktop/Econometrics1/Chap1/archive1')
+# Setting the working directory to the specific local path where the Olist dataset resides
+
+df_customers = pd.read_csv('olist_customers_dataset.csv')
+# Ingesting the raw customer dimension table into a pandas dataframe
+df_orders = pd.read_csv('olist_orders_dataset.csv')
+# Ingesting the raw orders fact table containing timestamp data
+df_items = pd.read_csv('olist_order_items_dataset.csv')
+# Ingesting the line-item details (SKUs, price, freight) for every order
+df_reviews = pd.read_csv('olist_order_reviews_dataset.csv')
+# Ingesting the sentiment data/reviews related to specific orders
+df_products = pd.read_csv('olist_products_dataset.csv')
+# Ingesting the product dimension table with category names
+df_category_translation = pd.read_csv('product_category_name_translation.csv')
+# Ingesting the lookup table to translate Portuguese category names to English
+
+df_products_translated = pd.merge(df_products, df_category_translation, on='product_category_name', how='left')
+# Executing a Left Join to enrich the product table with English translations, keeping all products even if translation is missing
+df_products_translated.drop(columns=['product_category_name'], inplace=True)
+# Dropping the original Portuguese column to reduce dimensionality and keep the schema clean
+
+dataframes = {
+    'Customers': df_customers,
+    'Orders': df_orders,
+    'Order Items': df_items,
+    'Reviews': df_reviews,
+    'Products': df_products,
+    'Categories': df_category_translation
+}
+# Creating a dictionary of dataframes to allow for iterative data quality checks (Looping through the Library)
+
+# ==========================================
+# SECTION II: SCRUB (DATA QUALITY & CLEANING)
+# ==========================================
+
+# --- Duplicate Verification Loop ---
+for Orders, df in dataframes.items():
+# Initiating a loop to iterate through every dataframe in our dictionary
+    duplicate_count = df.duplicated().sum()
+    # Calculating the total number of fully duplicated rows in the current dataframe
+    status = " Duplicates Found" if duplicate_count > 0 else "Clean"
+    # Assigning a string status based on whether duplicates exist (Conditional Assignment)
+    print(f"| {Orders:15} | Rows: {len(df):10,} | Duplicates: {duplicate_count:8} | Status: {status}")
+    # Printing a formatted log of the duplicate check results
+    print("-" * 100)
+    # Printing a separator line for visual clarity in the terminal output
+
+CUSTOM_NA_STRINGS = ['NA', 'N/A', 'n/a', 'NULL', 'None', 'Missing', 'Unknown', '?', '-']
+# Defining a list of non-standard null indicators often found in dirty CSVs
+CUSTOM_NA_NUMBERS = [-999, -1, 99999] 
+# Defining a list of numeric sentinels that represent missing values
+
+# --- Missing Value Imputation Loop ---
+for Orders, df in dataframes.items():
+# Iterating through the dataframes again to handle missing values
+    df = df.replace(to_replace=CUSTOM_NA_NUMBERS, value=np.nan)
+    # Replacing numeric placeholder values with true NumPy NaN objects
+    df = df.replace(to_replace=CUSTOM_NA_STRINGS, value=np.nan)
+    # Replacing string placeholder values with true NumPy NaN objects
+   
+    true_nulls = df.isnull()
+    # Creating a boolean mask identifying where the data is officially NaN
+    empty_string_mask = df.astype(str).apply(lambda x: x.str.strip()).eq("").fillna(False)
+    # Creating a secondary mask to catch whitespace-only strings that act as nulls
+    combined_mask = true_nulls | empty_string_mask
+    # Combining both masks (Logical OR) to catch every type of missing data
+    missing_data_summary = combined_mask.sum()
+    # Summing the boolean mask to get a count of missing values per column
+    missing_columns = missing_data_summary[missing_data_summary > 0]
+    # Filtering the summary to isolate only columns that actually have missing data
+    
+    # Specific cleaning for the Reviews dataframe
+    df_reviews['review_comment_message'] = df_reviews['review_comment_message'].fillna('NO_COMMENT_PROVIDED')
+    # Imputing missing review messages with a categorical placeholder
+    df_reviews['review_comment_title'] = df_reviews['review_comment_title'].fillna('NO_TITLE_PROVIDED')
+    # Imputing missing review titles to prevent errors during NLP or text analysis
+
+    print("-" * 75)  
+    print(f"🔎 Comprehensive Missing Value Report for: **{Orders}**")
+    # Printing a header for the report for the specific dataframe
+    print("-" * 75)
+    
+    if missing_columns.empty:
+    # Checking if the filtered missing columns series is empty
+        print(" No missing values (Nulls, Placeholders, or Empty Strings) found.")
+        # Logging that the dataframe is clean
+    else:
+        total_rows = len(df)
+        # Capturing the total record count for percentage calculation
+        print(f"Total Rows: {total_rows:,}\n")
+        # Printing the row count with comma formatting
+        print("Column   | Missing Count   | Percentage (%)    | Sample Indices (First 3)")
+        # Printing the table header for the missing value breakdown
+        print("-------  |---------------  |----------------   |--------------------------")
+        
+        for column, count in missing_columns.items():
+        # Iterating through each column that has missing data
+            percentage = (count / total_rows) * 100
+            # Calculating the density of missing values
+            col_mask = combined_mask[column] 
+            # Retrieving the specific boolean mask for this column
+            missing_indices = df[col_mask].index.tolist()
+            # Extracting the index labels where data is missing
+            sample_indices = ', '.join(map(str, missing_indices[:3])) 
+            # Formatting the first 3 indices into a string for the report
+            if len(missing_indices) > 3:
+                sample_indices += ', ...'
+            # Appending an ellipsis if there are more than 3 missing values
+            print(f"{column:<5} | {count:5,} | {percentage:5.2f} | {sample_indices}")
+            # Printing the formatted row for the table
+            print("\n")
+
+# ==========================================
+# SECTION III: ENRICH (FEATURE ENGINEERING & TIME)
+# ==========================================
+
+TARGET_STATUS = 'delivered' 
+# Setting the primary filter variable to isolate successful transactions
+STATUSES_TO_KEEP = ['delivered', 'canceled']
+# Defining the scope of the analysis (Success vs Failure) for Churn Modeling
+
+df_orders['order_status'] = (
+    df_orders['order_status']
+    .astype(str)
+    .str.strip()   
+    .str.lower()   
+)
+# Normalizing the status column to lowercase/trimmed strings to ensure data consistency
+
+date_cols = [
+    'order_purchase_timestamp', 
+    'order_approved_at', 
+    'order_delivered_carrier_date', 
+    'order_delivered_customer_date'
+]
+# Defining the list of columns that need temporal conversion
+
+for col in date_cols:
+# Iterating through the date columns
+    df_orders[col] = pd.to_datetime(df_orders[col], errors='coerce')
+    # Converting string timestamps to Python datetime objects, coercing errors to NaT
+
+delivered_mask = df_orders['order_status'] == TARGET_STATUS
+# Creating a boolean mask to isolate only delivered orders
+
+df_orders.loc[delivered_mask & df_orders['order_approved_at'].isna(), 'order_approved_at'] = df_orders['order_purchase_timestamp']
+# Imputing missing approval dates with the purchase date (Assuming instant approval for these edge cases)
+
+df_orders['Time_to_Approval_hrs'] = (
+    df_orders['order_approved_at'] - df_orders['order_purchase_timestamp']
+).dt.total_seconds() / 3600
+# Calculating the latency between purchase and approval in hours (Operational efficiency metric)
+
+df_orders['Shipping_Time_hrs'] = (
+    df_orders['order_delivered_customer_date'] - df_orders['order_delivered_carrier_date']
+).dt.total_seconds() / 3600
+# Calculating the logistics transit time in hours (The "Friction" metric source)
+
+median_shipping_time = df_orders[delivered_mask]['Shipping_Time_hrs'].median()
+# Calculating the median shipping time to handle skew/outliers for imputation
+shipping_nan_mask = delivered_mask & df_orders['Shipping_Time_hrs'].isna()
+# Identifying delivered orders that are missing shipping timestamps
+df_orders.loc[shipping_nan_mask, 'Shipping_Time_hrs'] = median_shipping_time
+# Imputing the median value into the missing slots to preserve data volume
+
+df_ltv_training = df_orders[df_orders['order_status'].isin(STATUSES_TO_KEEP)].copy()
+# Creating the master training set containing only Delivered and Canceled orders
+
+print("--- Duration Handling Complete ---")
+# Logging process completion
+print(f"Median Shipping Time used for imputation (hrs): {median_shipping_time:.2f}")
+# verifying the imputation value
+print(f"Total delivered orders with imputed shipping time: {shipping_nan_mask.sum():,}")
+# verifying the impact of imputation
+print(f"Rows retained for LTV training (Delivered & Canceled): {len(df_ltv_training):,}")
+# verifying the final dataset size
+
+# ==========================================
+# SECTION IV: AGGREGATE (LTV & RFM PREP)
+# ==========================================
+
+print("Merging customer data to link unique IDs...")
+# Logging the start of the relational merge
+df_ltv_training = df_ltv_training.merge(
+    df_customers[['customer_id', 'customer_unique_id']],
+    on='customer_id',
+    how='left'
+)
+# Joining the customer dimension to get the 'customer_unique_id' (The true User ID)
+
+print("Calculating total monetary value per order...")
+# Logging the start of the monetary aggregation
+order_value_df = df_items.groupby('order_id').agg(
+    order_total_price=('price', 'sum'),
+    order_total_freight=('freight_value', 'sum')
+).reset_index()
+# Grouping line items by order ID to get the total basket size and total shipping cost
+
+order_value_df['order_monetary_value'] = (
+    order_value_df['order_total_price'] + order_value_df['order_total_freight']
+)
+# Calculating the Gross Merchandise Value (GMV) per order (Price + Freight)
+
+order_value_df = order_value_df[['order_id', 'order_monetary_value']]
+# Subsetting the dataframe to keep only the necessary columns for the merge
+
+df_ltv_training = df_ltv_training.merge(
+    order_value_df,
+    on='order_id',
+    how='left'
+)
+# Merging the calculated order values back into the main training dataframe
+
+canceled_mask = df_ltv_training['order_status'] == 'canceled'
+# Identifying canceled orders to adjust their revenue
+df_ltv_training.loc[canceled_mask, 'order_monetary_value'] = 0.0
+# Zeroing out the revenue for canceled orders (Failed transactions shouldn't contribute to LTV)
+
+first_purchase_date_df = df_ltv_training.groupby('customer_unique_id')['order_purchase_timestamp'].min().reset_index()
+# Finding the acquisition date (Cohort Date) for every unique customer
+first_purchase_date_df.columns = ['customer_unique_id', 'first_purchase_timestamp']
+# Renaming columns for clarity during the merge
+
+df_ltv_training = df_ltv_training.merge(
+    first_purchase_date_df, 
+    on='customer_unique_id', 
+    how='left'
+)
+# Merging the cohort date back into the main dataframe
+
+df_ltv_training['is_first_transaction'] = (
+    df_ltv_training['order_purchase_timestamp'] == df_ltv_training['first_purchase_timestamp']
+)
+# Creating a boolean flag to differentiate Acquisition orders from Retention orders
+
+# ==========================================
+# SECTION V: MODEL (RFM CORE CALCULATION)
+# ==========================================
+
+observation_date = df_ltv_training['order_purchase_timestamp'].max() 
+# Determining the "Today" date of the dataset for Recency calculations
+print(f"Observation Date set to: {observation_date}")
+# Logging the anchor date
+
+delivered_orders = df_ltv_training[df_ltv_training['order_status'] == 'delivered'].copy()
+# Isolating delivered orders for Frequency and Monetary calculations
+
+# --- 1. Base Aggregation (The "Skeleton") ---
+customer_df = df_ltv_training.groupby('customer_unique_id').agg(
+    Last_Purchase_Date=('order_purchase_timestamp', 'max'),
+    LTV_Target_Historical=('order_monetary_value', 'sum'),
+    Total_Transactions=('order_id', 'count')
+).reset_index()
+# Compressing the dataset from Transaction-Level to Customer-Level (The Granularity Shift)
+
+# --- 2. Filtered Aggregation (The "Meat") ---
+frequency_monetary_df = delivered_orders.groupby('customer_unique_id').agg(
+    Frequency=('order_id', 'count'),
+    Monetary_Avg=('order_monetary_value', 'mean')
+).reset_index()
+# Calculating F and M scores using only successful transactions
+
+# --- 3. Merge & Impute ---
+customer_df = customer_df.merge(
+    frequency_monetary_df, 
+    on='customer_unique_id', 
+    how='left'
+)
+# Combining the base skeleton with the F/M metrics
+
+customer_df['Recency_Days'] = (
+    observation_date - customer_df['Last_Purchase_Date']
+).dt.days
+# Calculating the Recency (R) score: Days since last activity
+
+customer_df[['Frequency', 'Monetary_Avg']] = customer_df[['Frequency', 'Monetary_Avg']].fillna(0)
+# Handling NaNs: If a customer has no delivered orders, their F and M are 0
+
+print("RFM and LTV features calculated at the customer level.")
+# Logging success
+print(f"Final customer DataFrame size: {len(customer_df):,} unique customers.")
+# verifying the final count of unique users
+
+# ==========================================
+# SECTION VI: EXPLORE (GEO & FRICTION LOGIC)
+# ==========================================
+
+# --- Geographic Data Cleaning ---
+customer_geo_df = df_customers[['customer_unique_id', 'customer_city', 'customer_state']].astype(str).apply(lambda x: x.str.strip().str.lower()).drop_duplicates(subset=['customer_unique_id'], keep='first')
+# Creating a lookup table for customer locations, deduping by ID to prevent merge explosions
+
+customer_df = customer_df.merge(
+    customer_geo_df,
+    on='customer_unique_id',
+    how='left'
+)
+# Attaching geography to the RFM matrix
+
+# --- One-Hot Encoding (State) ---
+state_dummies = pd.get_dummies(customer_df['customer_state'], prefix='state', drop_first=True)
+# Converting categorical State data into binary columns for potential ML usage
+customer_df = pd.concat([customer_df, state_dummies], axis=1)
+# Concatenating the new dummy columns to the main dataframe
+customer_df = customer_df.drop('customer_state', axis=1)
+# Dropping the original categorical column to avoid multicollinearity
+
+# --- Target Encoding (City) ---
+city_avg_ltv = customer_df.groupby('customer_city')['LTV_Target_Historical'].mean().reset_index()
+# Calculating the average LTV per city
+city_avg_ltv.columns = ['customer_city', 'city_ltv_encoded']
+# Renaming the new feature
+customer_df = customer_df.merge(
+    city_avg_ltv,
+    on='customer_city',
+    how='left'
+)
+# Mapping the city value back to the customer
+global_mean_ltv = customer_df['LTV_Target_Historical'].mean()
+# Calculating global mean for imputation
+customer_df['city_ltv_encoded'] = customer_df['city_ltv_encoded'].fillna(global_mean_ltv)
+# Imputing missing city values with the global mean
+customer_df = customer_df.drop('customer_city', axis=1)
+# Dropping the high-cardinality city string column
+
+# --- LOGISTICS FRICTION & FREIGHT RATIO (The "Enrichment" Core) ---
+
+# 1. Freight Total Calculation
+order_freight = df_items.groupby('order_id')['freight_value'].sum().reset_index()
+# Summing freight costs per order ID
+order_freight.columns = ['order_id', 'order_total_freight']
+# Renaming for clarity
+
+df_ltv_training = df_ltv_training.merge(order_freight, on='order_id', how='left')
+# Merging total freight back to the transaction table
+
+customer_freight = df_ltv_training.groupby('customer_unique_id')['order_total_freight'].sum().reset_index()
+# Aggregating total lifetime freight paid per customer
+customer_freight.columns = ['customer_unique_id', 'Total_Freight_Paid']
+# Renaming for the merge
+
+customer_df = customer_df.merge(customer_freight, on='customer_unique_id', how='left')
+# Merging lifetime freight into the customer feature matrix
+
+# 2. Freight Ratio Calculation (Global)
+customer_df['Freight_Ratio'] = (customer_df['Total_Freight_Paid'] / customer_df['LTV_Target_Historical']) * 100
+# Calculating what % of the customer's total spend went to shipping (Price Friction)
+customer_df['Freight_Ratio'] = customer_df['Freight_Ratio'].fillna(0).clip(lower=0, upper=100)
+# Cleaning the ratio: handling division by zero and capping outliers at 100%
+
+# 3. Individual Friction Score Calculation (Granular)
+df_ltv_training['order_friction'] = (df_ltv_training['order_total_freight'] / df_ltv_training['order_monetary_value']) * 100
+# Calculating friction at the transaction level first
+df_ltv_training['order_friction'] = df_ltv_training['order_friction'].fillna(0).clip(upper=100)
+# Cleaning the transaction-level friction
+
+customer_friction_series = df_ltv_training.groupby('customer_unique_id')['order_friction'].mean()
+# Averaging the transaction friction to get a "Per User" friction score
+
+customer_df = customer_df.merge(
+    customer_friction_series.to_frame(name='individual_friction_score'),
+    left_on='customer_unique_id',
+    right_index=True,
+    how='left'
+)
+# Merging the granular friction score into the customer matrix
+
+customer_df['individual_friction_score'] = customer_df['individual_friction_score'].fillna(0)
+# Imputing 0 for customers with no valid friction data
+
+# 4. Shipping Time Integration
+shipping_avg = df_ltv_training.groupby('customer_unique_id')['Shipping_Time_hrs'].mean().reset_index()
+# Aggregating average shipping hours per customer
+customer_df = customer_df.merge(shipping_avg, on='customer_unique_id', how='left')
+# Merging shipping time into the master matrix
+
+# --- Outlier Handling (Clipping) ---
+upper_limit = customer_df['Shipping_Time_hrs'].quantile(0.99)
+# Determining the 99th percentile for shipping time
+customer_df['Shipping_Time_hrs'] = customer_df['Shipping_Time_hrs'].clip(lower=0, upper=upper_limit)
+# Clipping shipping time to remove extreme outliers (whales/errors)
+
+upper_limit_ltv = customer_df['LTV_Target_Historical'].quantile(0.99)
+# Determining the 99th percentile for LTV
+customer_df['LTV_Target_Historical'] = customer_df['LTV_Target_Historical'].clip(upper=upper_limit_ltv)
+# Clipping LTV to prevent skewing visualization scales
+
+# ==========================================
+# SECTION VII: DATA QUALITY & VERIFICATION
+# ==========================================
+
+print("🎯 FINAL VERIFICATION: EXCLUSION CHECKS (CLEANED) 🎯")
+# Header for the QA section
+
+df_orders['order_status_cleaned'] = df_orders['order_status'].astype(str).str.strip().str.lower()
+# Creating a temporary cleaned status column for accurate validation
+
+STATUSES_TO_EXCLUDE_FROM_REPORT = ['delivered', 'canceled']
+# Defining which statuses should be present in the training set
+excluded_mask = ~df_orders['order_status_cleaned'].isin(STATUSES_TO_EXCLUDE_FROM_REPORT)
+# Creating a mask for everything that ISN'T Delivered or Canceled
+
+df_excluded = df_orders[excluded_mask].copy()
+# Creating a subset of excluded data to inspect
+
+excluded_summary_verified = df_excluded.groupby('order_status_cleaned').agg(
+    Total_Count=('order_id', 'count'),
+    Shipping_Time_Sample=('Shipping_Time_hrs', lambda x: [f"{val:.2f}" if not pd.isna(val) else 'NaN' for val in x.head(2).tolist()])
+).reset_index()
+# Aggregating the excluded data to prove that non-delivered orders have NaN shipping times
+
+print("Orders **Correctly Excluded** from LTV Training Set:\n")
+# printing the QA report
+print(excluded_summary_verified.to_markdown(index=False))
+# Displaying the markdown table of excluded statuses
+print(f"\nTotal Excluded Orders: {len(df_excluded):,}")
+# Displaying total count of dropped rows
+
+# ==========================================
+# SECTION VIII: FINAL EXPORT (FRONT DOOR)
+# ==========================================
+
+customer_df['is_first_transaction'] = customer_df['Frequency'].apply(lambda x: True if x == 1 else False)
+# Creating a final boolean for the dashboard to filter New vs Repeat customers
+
+export_cols = [
+    'customer_unique_id', 
+    'LTV_Target_Historical', 
+    'Recency_Days', 
+    'Frequency', 
+    'Monetary_Avg', 
+    'city_ltv_encoded', 
+    'Shipping_Time_hrs', 
+    'is_first_transaction',
+    'Total_Freight_Paid',
+    'Freight_Ratio',
+    'individual_friction_score'
+]
+# Defining the strict schema for the final CSV export
+
+missing_from_df = [col for col in export_cols if col not in customer_df.columns]
+# Performing a final safety check to ensure all columns exist before export
+
+desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+# Identifying the user's desktop path dynamically
+file_name = "Final_Customers.csv"
+# Naming the output file
+full_output_path = os.path.join(desktop_path, file_name)
+# Constructing the full system path
+
+if missing_from_df:
+# If columns are missing, halt and warn
+    print(f"⚠️ WARNING: The following columns are missing from your dataframe: {missing_from_df}")
+    print("Please ensure you ran the Freight Ratio calculation block before this export.")
+else:
+# If clean, proceed with export
+    final_export = customer_df[export_cols].copy()
+    # Creating the clean export dataframe
+    final_export.to_csv(full_output_path, index=False, encoding='utf-8')
+    # Writing the CSV to the desktop
+    print("-" * 50)
+    print(f"🚀 PIPELINE SUCCESS: Data sent to Front Door")
+    # Success message
+    print(f"📍 Location: {full_output_path}")
+    # Location verification
+    print(f"Verified Columns: {len(export_cols)}")
+    # Column count verification
+    print("-" * 50)
+
+# ==========================================
+# SECTION IX: REPORTING & FUNCTIONS (DASHBOARD LOGIC)
+# ==========================================
+# Note: These functions are for internal reporting and verifying logic within the notebook context.
+
+def calculate_dashboard_kpis(customer_df):
+    """Calculates the 3 Headline KPIs for the 1+4 Dashboard."""
+    total_portfolio_ltv = customer_df['LTV_Target_Historical'].sum()
+    avg_friction_ratio = customer_df['Freight_Ratio'].mean()
+    friction_index = (avg_friction_ratio / 10) 
+    at_risk_count = customer_df[customer_df['Recency_Days'] > 60]['customer_unique_id'].nunique()
+    total_customers = customer_df['customer_unique_id'].nunique()
+    overall_churn_rate = (at_risk_count / total_customers) * 100
+    return {
+        "Total LTV": total_portfolio_ltv,
+        "Friction Index": friction_index,
+        "Churn Rate": overall_churn_rate,
+        "Avg Freight %": avg_friction_ratio
+    }
+
+if 'customer_df' in locals():
+# Running the internal report if the data exists
+    kpis = calculate_dashboard_kpis(customer_df)
+    print("\n📊 DASHBOARD HEADLINE FIGURES")
+    print("-" * 60)
+    print(f"1. Total Portfolio LTV:    ${kpis['Total LTV']:,.2f}")
+    print(f"2. Avg. Friction Index:     {kpis['Friction Index']:.2f}/10")
+    print(f"3. Overall Churn Rate:      {kpis['Churn Rate']:.1f}%")
+    print("-" * 60)
+
+threshold = 60
+# Defining the critical "Cliff" edge (in days) derived from the EDA phase
+
+active_customers = customer_df[customer_df['Recency_Days'] <= threshold]
+# Segmenting the "Alive" portion of the customer base to establish a baseline LTV
+at_risk_customers = customer_df[customer_df['Recency_Days'] > threshold]
+# Segmenting the "At-Risk" cohort to measure the erosion of customer value over time
+
+# --- A. LTV DEGRADATION ANALYSIS ---
+avg_ltv_active = active_customers['LTV_Target_Historical'].mean()
+# Calculating the average Lifetime Value for customers currently in the engagement loop
+avg_ltv_at_risk = at_risk_customers['LTV_Target_Historical'].mean()
+# Calculating the residual LTV for customers who have crossed the recency threshold
+
+percent_drop = ((avg_ltv_at_risk - avg_ltv_active) / avg_ltv_active) * 100
+# Quantifying the "Cliff" magnitude: The percentage loss in Future Value when a user goes dark
+
+print("-" * 60)
+print("📉 STRATEGIC VALIDATION: THE 60-DAY CLIFF")
+print("-" * 60)
+print(f"Average LTV (Active / 0-{threshold} days):  ${avg_ltv_active:.2f}")
+# Reporting the baseline value of an engaged user
+print(f"Average LTV (At-Risk / {threshold}+ days): ${avg_ltv_at_risk:.2f}")
+# Reporting the deprecated value of a churned user
+print(f"Projected Value Erosion:           {percent_drop:.1f}%")
+# Displaying the final drop-off percentage to validate the urgency of the problem
+
+# --- B. HYPOTHESIS TEST: DOES FRICTION DRIVE CHURN? ---
+avg_friction_active = active_customers['individual_friction_score'].mean()
+# Calculating the average friction pain point for retained users
+avg_friction_at_risk = at_risk_customers['individual_friction_score'].mean()
+# Calculating the average friction pain point for churned users
+
+friction_delta = ((avg_friction_at_risk - avg_friction_active) / avg_friction_active) * 100
+# Quantifying the difference: Positive % means churned users experienced more pain
+
+print("-" * 60)
+print("🧐 HYPOTHESIS TEST: LOGISTICS FRICTION IMPACT")
+print("-" * 60)
+print(f"Avg Friction Score (Active Customers):   {avg_friction_active:.2f}%")
+# Benchmarking the retained user experience
+print(f"Avg Friction Score (Churned Customers):  {avg_friction_at_risk:.2f}%")
+# Benchmarking the failed user experience
+print(f"Friction Differential:                  {friction_delta:+.1f}%")
+# showing the percentage difference
+if friction_delta > 0:
+    print("CONCLUSION: VALIDATED. Churned customers faced higher logistics friction.")
+else:
+    print("CONCLUSION: REJECTED. Logistics friction appears uncorrelated with churn in this sample.")
+# providing a binary outcome for the hypothesis
+print("-" * 60)

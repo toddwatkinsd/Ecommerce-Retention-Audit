@@ -93,7 +93,7 @@ for Orders, df in dataframes.items():
     # Imputing missing review titles to prevent errors during NLP or text analysis
 
     print("-" * 75)  
-    print(f"🔎 Comprehensive Missing Value Report for: **{Orders}**")
+    print(f"Comprehensive Missing Value Report for: **{Orders}**")
     # Printing a header for the report for the specific dataframe
     print("-" * 75)
     
@@ -405,7 +405,7 @@ customer_df['LTV_Target_Historical'] = customer_df['LTV_Target_Historical'].clip
 # SECTION VII: DATA QUALITY & VERIFICATION
 # ==========================================
 
-print("🎯 FINAL VERIFICATION: EXCLUSION CHECKS (CLEANED) 🎯")
+print("FINAL VERIFICATION: EXCLUSION CHECKS (CLEANED)")
 # Header for the QA section
 
 df_orders['order_status_cleaned'] = df_orders['order_status'].astype(str).str.strip().str.lower()
@@ -466,7 +466,7 @@ full_output_path = os.path.join(desktop_path, file_name)
 
 if missing_from_df:
 # If columns are missing, halt and warn
-    print(f"⚠️ WARNING: The following columns are missing from your dataframe: {missing_from_df}")
+    print(f"WARNING: The following columns are missing from your dataframe: {missing_from_df}")
     print("Please ensure you ran the Freight Ratio calculation block before this export.")
 else:
 # If clean, proceed with export
@@ -475,9 +475,9 @@ else:
     final_export.to_csv(full_output_path, index=False, encoding='utf-8')
     # Writing the CSV to the desktop
     print("-" * 50)
-    print(f"🚀 PIPELINE SUCCESS: Data sent to Front Door")
+    print(f"PIPELINE SUCCESS: Data sent to Front Door")
     # Success message
-    print(f"📍 Location: {full_output_path}")
+    print(f"Location: {full_output_path}")
     # Location verification
     print(f"Verified Columns: {len(export_cols)}")
     # Column count verification
@@ -506,7 +506,7 @@ def calculate_dashboard_kpis(customer_df):
 if 'customer_df' in locals():
 # Running the internal report if the data exists
     kpis = calculate_dashboard_kpis(customer_df)
-    print("\n📊 DASHBOARD HEADLINE FIGURES")
+    print("\nDASHBOARD HEADLINE FIGURES")
     print("-" * 60)
     print(f"1. Total Portfolio LTV:    ${kpis['Total LTV']:,.2f}")
     print(f"2. Avg. Friction Index:     {kpis['Friction Index']:.2f}/10")

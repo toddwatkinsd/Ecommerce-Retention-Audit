@@ -43,7 +43,7 @@ The Tableau dashboard visualizes **Average LTV** and **Customer Volume** by stat
 * **High-Value Hubs:** Identified regions maintaining >$150 Avg LTV.
 * **Value Erosion Zones:** Remote states show high customer density but significantly lower LTV, correlating with the high friction scores found in the Python audit.
 
-## 💰 Portfolio Snapshot
+## Portfolio Snapshot
 
 | Metric | Value | Definition |
 | :--- | :--- | :--- |
@@ -52,7 +52,7 @@ The Tableau dashboard visualizes **Average LTV** and **Customer Volume** by stat
 | **Avg. Friction Score** | **2.12 / 10** | Average shipping cost is 21.2% of order value. |
 | **Strategic Window** | **60 Days** | The specific "Cliff" where customer engagement drops to near zero. |
 
-## 🛠 Technical Implementation (OSEMN)
+## Technical Implementation (OSEMN)
 
 ### 1. Data Pipeline
 
@@ -75,13 +75,13 @@ The Tableau dashboard visualizes **Average LTV** and **Customer Volume** by stat
 
 ```text
 ------------------------------------------------------------
-📉 STRATEGIC VALIDATION: THE 60-DAY CLIFF
+STRATEGIC VALIDATION: THE 60-DAY CLIFF
 ------------------------------------------------------------
 Average LTV (Active / 0-60 days):  $138.85
 Average LTV (At-Risk / 60+ days):  $158.45
 Projected Value Erosion:           14.1%
 ------------------------------------------------------------
-🧐 HYPOTHESIS TEST: LOGISTICS FRICTION IMPACT
+HYPOTHESIS TEST: LOGISTICS FRICTION IMPACT
 ------------------------------------------------------------
 Avg Friction Score (Active Customers):   20.35%
 Avg Friction Score (Churned Customers):  21.23%

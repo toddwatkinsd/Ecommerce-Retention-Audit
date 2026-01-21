@@ -1,7 +1,5 @@
 # E-Commerce Churn & Logistics Audit
 
-> **An OSEMN-based audit quantifying the impact of logistics costs on customer retention and lifetime value.**
-
 ##  [TABLEAU DASHBOARD HERE](https://public.tableau.com/app/profile/todd.watkins4029/viz/Ecommerce-Customer-RetentionCLV/StrategicCustomerLifestyle?publish=yes)
 
 ## Executive Summary

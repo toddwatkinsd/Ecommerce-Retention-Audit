@@ -2,7 +2,7 @@
 
 > **An OSEMN-based audit quantifying the impact of logistics costs on customer retention and lifetime value.**
 
-## [View Live Dashboard →]([[AUDIT DASHBOARD HERE](https://public.tableau.com/app/profile/todd.watkins4029/viz/Ecommerce-Customer-RetentionCLV/StrategicCustomerLifestyle?publish=yes)])
+## [[AUDIT DASHBOARD HERE](https://public.tableau.com/app/profile/todd.watkins4029/viz/Ecommerce-Customer-RetentionCLV/StrategicCustomerLifestyle?publish=yes)])
 
 ## Executive Summary
 

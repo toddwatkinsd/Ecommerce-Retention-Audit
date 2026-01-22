@@ -2,7 +2,7 @@
 
 ##  [TABLEAU DASHBOARD HERE](https://public.tableau.com/app/profile/todd.watkins4029/viz/Ecommerce-Customer-RetentionCLV/StrategicCustomerLifestyle?publish=yes)
 
-##Executive Summary
+## Executive Summary
 
 **Objective:** Analyze 99,441 e-commerce transactions to determine if "Logistics Friction" (shipping cost relative to order value) drives customer churn.
 

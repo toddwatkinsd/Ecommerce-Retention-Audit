@@ -33,10 +33,11 @@ A statistical test confirmed that shipping costs are a causal factor in this att
 
 ### 3. Geographic Value Disparity
 
-The Tableau dashboard visualizes **Average LTV** and **Customer Volume** by state.
+The Tableau dashboard visualizes **Average LTV** and **Customer Volume** by state, confirming a logistics-driven divide.
 
-* **High-Value Hubs:** Identified regions maintaining >$150 Avg LTV.
-* **Value Erosion Zones:** Remote states show high customer density but significantly lower LTV, correlating with the high friction scores found in the Python audit.
+* **The Hub (São Paulo):** Represents the ideal state—**High Density** and **High LTV**, benefiting from low logistics friction.
+* **Value Erosion Zones (Remote States):** States distant from the distribution center show significantly **lower customer density** and elevated friction scores.
+* **The Insight:** High logistics costs ($20+ shipping on small orders) are acting as a barrier to entry, suppressing market penetration in these regions compared to the central hub.
 
 ## Portfolio Snapshot
 

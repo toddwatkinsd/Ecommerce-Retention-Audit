@@ -75,29 +75,6 @@ STRATEGIC VALIDATION: THE 60-DAY CLIFF
 ------------------------------------------------------------
 Average LTV (Active / 0-60 days):  $138.85
 Average LTV (At-Risk / 60+ days):  $158.45
-Projected Value Erosion:           14.1%
-------------------------------------------------------------
-HYPOTHESIS TEST: LOGISTICS FRICTION IMPACT
-------------------------------------------------------------
-Avg Friction Score (Active Customers):   20.35%
-Avg Friction Score (Churned Customers):  21.23%
-Friction Differential:                   +4.3%
-CONCLUSION: VALIDATED. Churned customers faced higher logistics friction.
-------------------------------------------------------------
-3. **Statistical Validation:** Proving causation (friction → churn) requires cohort comparison, not just correlation
-4. **Production Thinking:** Schema validation, data quality checks, and export verification prevent downstream errors
-5. **Executive Framing:** Three headline KPIs (Churn %, LTV $, Friction %)
-
-### 3. Pipeline Validation Output
-
-*Actual terminal output from the final Python audit:*
-
-```text
-------------------------------------------------------------
-STRATEGIC VALIDATION: THE 60-DAY CLIFF
-------------------------------------------------------------
-Average LTV (Active / 0-60 days):  $138.85
-Average LTV (At-Risk / 60+ days):  $158.45
 High-Value Attrition Gap:          +14.1%
 ------------------------------------------------------------
 HYPOTHESIS TEST: LOGISTICS FRICTION IMPACT
@@ -107,9 +84,16 @@ Avg Friction Score (Churned Customers):  21.23%
 Friction Differential:                   +4.3%
 CONCLUSION: VALIDATED. Churned customers faced higher logistics friction.
 ------------------------------------------------------------
-
-### Key Technical Learnings
-3.  **Statistical Validation:** Validated a **+4.3% friction differential**, identifying logistics cost as a primary behavioral driver of churn.
-4.  **Production Thinking:** Implemented schema validation, zero-division handling, and median imputation to prevent downstream pipeline errors.
-5.  **Executive Framing:** Condensed 99k rows into three headline KPIs (Churn %, LTV $, Friction %) to communicate the portfolio health in under 5 seconds.
+HUB (SP) VS REMOTE FRONTIER ANALYSIS
+-----------------------------------------------------------------
+METRIC                    | HUB (SP)        | REMOTE AVG (North)
+-----------------------------------------------------------------
+Avg Friction Score        |          18.64% |          29.86%
+Avg LTV                   | $       142.04 |$        224.74
+Customer Density (Total)  |          39,431 |             556
+-----------------------------------------------------------------
+Insight 1: Remote states face a +11.2% higher friction tax than the hub.
+Insight 2: The Hub has 354.6x higher customer density per state.
+Conclusion: High logistics friction directly correlates with lower market penetration.
+------------------------------------------------------------
 

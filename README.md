@@ -54,7 +54,7 @@ The Tableau dashboard visualizes **Average LTV** and **Customer Volume** by stat
 
 * **Source:** 8 relational tables (Olist E-commerce Dataset).
 * **Scrub:** Handled 2,965 missing timestamps; median imputation (170.39 hrs) for shipping duration; zero-division handling for freight ratios.
-* **Enrich:** Engineered 11 custom features including `individual_friction_score` and `Recency_Days`.
+* **Enrich:** Engineered 11 custom features including `Individual_Friction_Score` and `Recency_Days`.
 
 ### 2. Feature Engineering Logic
 

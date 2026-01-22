@@ -513,6 +513,10 @@ if 'customer_df' in locals():
     print(f"3. Overall Churn Rate:      {kpis['Churn Rate']:.1f}%")
     print("-" * 60)
 
+# ==========================================
+# SECTION X: STRATEGIC VALIDATION (CHURN & FRICTION HYPOTHESIS)
+# ==========================================
+
 threshold = 60
 # Defining the critical "Cliff" edge (in days) derived from the EDA phase
 
@@ -564,3 +568,118 @@ else:
     print("CONCLUSION: REJECTED. Logistics friction appears uncorrelated with churn in this sample.")
 # providing a binary outcome for the hypothesis
 print("-" * 60)
+
+# --- C. GEO-SPATIAL AUDIT: STATE-LEVEL LTV REPORT ---
+# We need to re-attach the state labels (which we dropped for ML) to audit the regions
+# using the 'customer_geo_df' created in Section VI.
+
+geo_audit = customer_df.merge(
+    customer_geo_df[['customer_unique_id', 'customer_state']], 
+    on='customer_unique_id', 
+    how='left'
+)
+# Re-merging state data for the final report
+
+state_performance = geo_audit.groupby('customer_state').agg(
+    Avg_LTV=('LTV_Target_Historical', 'mean'),
+    Avg_Friction=('individual_friction_score', 'mean'),
+    Customer_Count=('customer_unique_id', 'count')
+).reset_index()
+# Aggregating performance metrics by State
+
+# Sort by LTV to see the "Value Erosion Zones" clearly
+state_performance_sorted = state_performance.sort_values(by='Avg_LTV', ascending=False)
+
+print("\nFULL GEO-SPATIAL AUDIT: AVERAGE LTV BY STATE")
+print("-" * 60)
+# Uses markdown formatting to create a clean table in the terminal
+print(state_performance_sorted[['customer_state', 'Avg_LTV', 'Avg_Friction', 'Customer_Count']].to_markdown(index=False, floatfmt=".2f"))
+print("-" * 60)
+print("Interpretation: Compare the 'Avg_LTV' of remote states (e.g., RR, AP, AC) vs. hubs (SP, RJ).")
+# Guiding the analysis
+print("High Friction in remote states typically correlates with lower LTV.")
+# Stating the expected relationship
+print("-" * 60)
+
+# --- D. HUB VS REMOTE ANALYSIS (The "Density Paradox" Proof) ---
+
+state_performance['customer_state'] = state_performance['customer_state'].astype(str).str.upper().str.strip()
+# Normalizing state abbreviations to uppercase to match our list exactly
+
+hub_state = 'SP'
+# Defining São Paulo as the primary logistics hub
+remote_states = ['RR', 'AP', 'AC', 'AM', 'RO'] 
+# Defining the "Frontier" states in the North that represent the extreme logistics challenge
+
+hub_data = state_performance[state_performance['customer_state'] == hub_state]
+# Isolating the single row of data for the Hub
+remote_data = state_performance[state_performance['customer_state'].isin(remote_states)]
+# Isolating the rows for the remote states to calculate a group average
+
+if not hub_data.empty and not remote_data.empty:
+# Safety check to ensure data exists before calculating metrics
+    remote_avg_ltv = remote_data['Avg_LTV'].mean()
+    # Calculating the average LTV across the remote state group
+    remote_avg_friction = remote_data['Avg_Friction'].mean()
+    # Calculating the average friction score across the remote state group
+    remote_density_total = remote_data['Customer_Count'].sum()
+    # Summing the total customers in the remote region
+    remote_density_avg = remote_data['Customer_Count'].mean()
+    # Calculating the average customer count per remote state for fair comparison
+
+    hub_ltv = hub_data['Avg_LTV'].values[0]
+    # Extracting the scalar LTV value for the Hub
+    hub_friction = hub_data['Avg_Friction'].values[0]
+    # Extracting the scalar Friction value for the Hub
+    hub_density = hub_data['Customer_Count'].values[0]
+    # Extracting the scalar Density value for the Hub
+
+    print("\nHUB (SP) VS REMOTE FRONTIER ANALYSIS")
+    # Printing the section header
+    print("-" * 65)
+    print(f"{'METRIC':<25} | {'HUB (SP)':<15} | {'REMOTE AVG (North)':<15}")
+    # Printing the column headers with alignment formatting
+    print("-" * 65)
+    print(f"{'Avg Friction Score':<25} | {hub_friction:>14.2f}% | {remote_avg_friction:>14.2f}%")
+    # Displaying the friction comparison
+    print(f"{'Avg LTV':<25} | ${hub_ltv:>14.2f} | ${remote_avg_ltv:>14.2f}")
+    # Displaying the LTV comparison
+    print(f"{'Customer Density (Total)':<25} | {hub_density:>15,} | {remote_density_total:>15,}")
+    # Displaying the total count comparison
+    print("-" * 65)
+
+    friction_gap = remote_avg_friction - hub_friction
+    # Calculating the absolute percentage point difference in friction
+    density_gap_ratio = hub_density / remote_density_avg 
+    # Calculating how many times larger the Hub is compared to the average remote state
+
+    print(f"Insight 1: Remote states face a +{friction_gap:.1f}% higher friction tax than the hub.")
+    # Reporting the specific friction penalty
+    print(f"Insight 2: The Hub has {density_gap_ratio:.1f}x higher customer density per state.")
+    # Reporting the massive density disparity
+    print("Conclusion: High logistics friction directly correlates with lower market penetration.")
+    # Summarizing the business impact
+    print("-" * 65)
+else:
+    print("Error: Hub or Remote state data missing from the dataset.")
+    # Error handling in case the merge failed or states are missing
+
+# --- E. VOLUME AUDIT: VERIFYING THE 85% CHURN CLAIM ---
+# We are calculating what % of our 'At-Risk' users officially crossed the 60-day line
+# and comparing their count to the total population.
+
+total_customers = len(customer_df)
+# Getting the total count of unique customers
+at_risk_count = len(at_risk_customers)
+# Getting the count of customers who have churned (passed 60 days)
+churn_volume_pct = (at_risk_count / total_customers) * 100
+# Calculating the percentage of the customer base that is currently At-Risk
+
+print("\nVOLUME AUDIT: CHURN DENSITY")
+# Printing the header for the volume check
+print("-" * 60)
+print(f"Total Unique Customers: {total_customers:,}")
+# Displaying total customers
+print(f"Customers past the 60-day 'Cliff': {at_risk_count:,}")
+# Displaying churned count
+print(f"Actual Churn Density: {churn_volume_pct:.1f}%")

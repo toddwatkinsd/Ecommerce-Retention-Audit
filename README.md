@@ -69,7 +69,7 @@ The Tableau dashboard visualizes **Average LTV** and **Customer Volume** by stat
 
 *Actual terminal output from the final Python audit:*
 
-```text
+
 ------------------------------------------------------------
 STRATEGIC VALIDATION: THE 60-DAY CLIFF
 ------------------------------------------------------------

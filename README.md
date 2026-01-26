@@ -1,6 +1,6 @@
 # E-Commerce Churn & Logistics Audit
 
-##  [TABLEAU DASHBOARD HERE](https://public.tableau.com/app/profile/todd.watkins4029/viz/Ecommerce-Customer-RetentionCLV/StrategicCustomerLifestyle?publish=yes)
+##  [TABLEAU DASHBOARD](https://public.tableau.com/app/profile/todd.watkins4029/viz/Ecommerce-Customer-RetentionCLV/StrategicCustomerLifestyle?publish=yes)
 
 ## Executive Summary
 
